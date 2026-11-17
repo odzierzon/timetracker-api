@@ -7,17 +7,28 @@ Symfony-REST-API für Mitarbeiter, Teams und Positionen mit MySQL. Redis ist als
 
 ## Lokal starten
 
-Voraussetzung: Docker mit Compose. Das Setup und die in `.env` und `compose.yaml` enthaltenen Zugangsdaten sind ausschließlich für die lokale Entwicklung gedacht.
+Voraussetzung: Docker mit Compose. Das Setup ist ausschließlich für die lokale Entwicklung gedacht. Hinterlege vor dem Start in `.env.local` die Datenbankzugangsdaten, zum Beispiel:
+
+```dotenv
+MYSQL_USER=timetracker
+MYSQL_PASSWORD=dein-passwort
+MYSQL_ROOT_PASSWORD=dein-root-passwort
+DATABASE_URL="mysql://timetracker:dein-passwort@database:3306/timetracker?serverVersion=8.4.0&charset=utf8mb4"
+```
+
+Benutzername und Passwort in `DATABASE_URL` müssen zu `MYSQL_USER` und `MYSQL_PASSWORD` passen. Sonderzeichen in den Zugangsdaten müssen in der URL gegebenenfalls URL-kodiert werden. Docker Compose liest `.env.local` nicht automatisch; gib deshalb bei jedem Compose-Aufruf `--env-file .env.local` an.
+
+Bei einem bereits initialisierten Datenbank-Volume ändern neue Werte in `.env.local` die vorhandenen MySQL-Zugangsdaten nicht. Verwende die bisherigen Zugangsdaten oder ändere sie zunächst in MySQL.
 
 ```bash
 export APP_UID="$(id -u)" APP_GID="$(id -g)"
-docker compose build app
-docker compose up -d --wait database redis
-docker compose run --rm --no-deps app composer install
-docker compose run --rm --no-deps app php bin/console lexik:jwt:generate-keypair --skip-if-exists
-docker compose run --rm --no-deps app php bin/console doctrine:migrations:migrate --no-interaction
-docker compose run --rm app php bin/console app:create-admin
-docker compose up -d app
+docker compose --env-file .env.local build app
+docker compose --env-file .env.local up -d --wait database redis
+docker compose --env-file .env.local run --rm --no-deps app composer install
+docker compose --env-file .env.local run --rm --no-deps app php bin/console lexik:jwt:generate-keypair --skip-if-exists
+docker compose --env-file .env.local run --rm --no-deps app php bin/console doctrine:migrations:migrate --no-interaction
+docker compose --env-file .env.local run --rm app php bin/console app:create-admin
+docker compose --env-file .env.local up -d app
 ```
 
 Der Admin-Befehl fragt E-Mail und Passwort interaktiv ab; das Passwort wird nicht als Kommandozeilenargument übergeben. Er kann bei Bedarf weitere Admins anlegen. Die API ist unter `http://127.0.0.1:8000` erreichbar. Ist Port 8000 belegt, kann für den letzten Befehl beispielsweise `APP_PORT=8001` gesetzt werden. Docker-Dateien sind für die Entwicklung mit eingebundenem Projektverzeichnis vorgesehen, nicht als Produktions-Deployment.
@@ -77,14 +88,14 @@ Mitarbeiterantworten enthalten `id`, `firstName`, `lastName`, `email`, `team` un
 Die Integrationstests verwenden einen separaten MySQL-Container mit flüchtigem Speicher. Sie löschen vor jedem Test ausschließlich dessen Testdaten; die Suite verweigert die Ausführung gegen andere Datenbank-Hosts oder -Namen.
 
 ```bash
-docker compose --profile test up -d --wait database_test
-docker compose --profile test run --rm --no-deps \
+docker compose --env-file .env.local --profile test up -d --wait database_test
+docker compose --env-file .env.local --profile test run --rm --no-deps \
   -e 'DATABASE_URL=mysql://timetracker:timetracker@database_test:3306/timetracker_test?serverVersion=8.4.0&charset=utf8mb4' \
   app php bin/console doctrine:migrations:migrate --no-interaction
-docker compose --profile test run --rm --no-deps \
+docker compose --env-file .env.local --profile test run --rm --no-deps \
   -e APP_ENV=test \
   -e 'DATABASE_URL=mysql://timetracker:timetracker@database_test:3306/timetracker_test?serverVersion=8.4.0&charset=utf8mb4' \
   app php vendor/bin/phpunit
 ```
 
-Die Tests benötigen die oben erzeugten lokalen JWT-Schlüssel. `docker compose --profile test stop database_test` beendet die Testdatenbank; ihr flüchtiger Inhalt geht dabei verloren.
+Die Tests benötigen die oben erzeugten lokalen JWT-Schlüssel. `docker compose --env-file .env.local --profile test stop database_test` beendet die Testdatenbank; ihr flüchtiger Inhalt geht dabei verloren.

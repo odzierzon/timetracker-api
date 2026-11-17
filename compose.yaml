@@ -18,9 +18,9 @@ services:
     image: mysql:8.4
     environment:
       MYSQL_DATABASE: timetracker
-      MYSQL_USER: timetracker
-      MYSQL_PASSWORD: timetracker
-      MYSQL_ROOT_PASSWORD: local-root-password
+      MYSQL_USER: "${MYSQL_USER:?MYSQL_USER fehlt}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD:?MYSQL_PASSWORD fehlt}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD fehlt}"
     volumes:
       - database_data:/var/lib/mysql
     ports:
