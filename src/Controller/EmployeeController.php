@@ -124,9 +124,12 @@ final class EmployeeController extends AbstractController
         $lastName = Input::requiredString($data, 'lastName', 100);
         $email = Input::email($data);
         $team = $this->em->find(Team::class, Input::id($data, 'teamId'));
+        if (!$team) {
+            throw new UnprocessableEntityHttpException('Team doesnot exist.');
+        }
         $position = $this->em->find(Position::class, Input::id($data, 'positionId'));
-        if (!$team || !$position) {
-            throw new UnprocessableEntityHttpException('Team or position does not exist.');
+        if (!$position) {
+            throw new UnprocessableEntityHttpException('Position does not exist.');
         }
         $employee->update($firstName, $lastName, $email, $team, $position, Input::birthday($data), Input::optionalString($data, 'phone', 50));
     }

@@ -13,7 +13,7 @@ final class Output
     }
 
     public static function employee(Employee $employee, bool $admin): array
-    {
+    { 
         $data = [
             'id' => $employee->getId(),
             'firstName' => $employee->getFirstName(),
