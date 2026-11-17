@@ -1,3 +1,6 @@
+> [!WARNING]
+> **Work in Progress (WIP):** Dieses Projekt befindet sich noch in einer frühen Entwicklungsphase. Funktionen sind unvollständig, APIs können sich jederzeit ändern – **nicht für den produktiven Einsatz geeignet!**
+
 # Zeiterfassung: Organisations-API
 
 Symfony-REST-API für Mitarbeiter, Teams und Positionen mit MySQL. Redis ist als Docker-Dienst vorbereitet, wird derzeit aber nicht verwendet. Ein Frontend ist nicht enthalten.
