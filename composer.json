@@ -1,6 +1,7 @@
 {
     "name": "timetracker/organization-api",
     "description": "Time tracking organization API",
+    "version": "0.1.0-dev",
     "type": "project",
     "license": "CC0-1.0",
     "require": {
