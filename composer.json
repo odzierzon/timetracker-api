@@ -2,7 +2,7 @@
     "name": "timetracker/organization-api",
     "description": "Time tracking organization API",
     "type": "project",
-    "license": "proprietary",
+    "license": "CC0-1.0",
     "require": {
         "php": ">=8.2",
         "ext-ctype": "*",
