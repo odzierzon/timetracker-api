@@ -74,14 +74,14 @@ Mitarbeiter-Body:
   "firstName": "Mara",
   "lastName": "Beispiel",
   "email": "mara@example.test",
-  "teamId": 1,
-  "positionId": 1,
+  "team": "Entwicklung",
+  "position": "Developer",
   "birthday": "1990-05-21",
   "phone": null
 }
 ```
 
-`firstName`, `lastName`, `email`, `teamId` und `positionId` sind Pflichtfelder. E-Mail-Adressen werden auf Kleinbuchstaben normalisiert und müssen unter Mitarbeitern eindeutig sein. `birthday` ist optional und verwendet `YYYY-MM-DD`; `phone` ist optional. Team und Position müssen existieren und können nicht gelöscht werden, solange Mitarbeiter zugeordnet sind. Das Löschen eines Mitarbeiters löscht auch dessen Konto. Wird die Mitarbeiter-E-Mail geändert, ändert sich auch die Login-E-Mail des zugehörigen Kontos.
+`firstName`, `lastName`, `email`, `team` und `position` sind Pflichtfelder. `team` und `position` werden anhand ihrer Bezeichnungen und nicht anhand von IDs zugeordnet. E-Mail-Adressen werden auf Kleinbuchstaben normalisiert und müssen unter Mitarbeitern eindeutig sein. `birthday` ist optional und verwendet `YYYY-MM-DD`; `phone` ist optional. Alle ungültigen Felder werden gemeinsam gemeldet; bei ungültigen Team- oder Positionsbezeichnungen werden die verfügbaren Bezeichnungen aufgeführt. Team und Position müssen existieren und können nicht gelöscht werden, solange Mitarbeiter zugeordnet sind. Das Löschen eines Mitarbeiters löscht auch dessen Konto. Wird die Mitarbeiter-E-Mail geändert, ändert sich auch die Login-E-Mail des zugehörigen Kontos.
 
 Mitarbeiterantworten enthalten `id`, `firstName`, `lastName`, `email`, `team` und `position`; Admins erhalten zusätzlich `birthday` und `phone`. `team` und `position` sind Objekte mit `id`, `name` und `description`.
 

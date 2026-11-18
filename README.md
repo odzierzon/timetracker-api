@@ -75,14 +75,14 @@ Employee body:
   "firstName": "Mara",
   "lastName": "Beispiel",
   "email": "mara@example.test",
-  "teamId": 1,
-  "positionId": 1,
+  "team": "Entwicklung",
+  "position": "Developer",
   "birthday": "1990-05-21",
   "phone": null
 }
 ```
 
-`firstName`, `lastName`, `email`, `teamId`, and `positionId` are required. Email addresses are normalized to lowercase and must be unique among employees. `birthday` is optional and uses `YYYY-MM-DD`; `phone` is optional. The team and position must exist and cannot be deleted while employees are assigned to them. Deleting an employee also deletes their account. If an employee's email address changes, the login email of the associated account changes as well.
+`firstName`, `lastName`, `email`, `team`, and `position` are required. `team` and `position` are matched by their names, not IDs. Email addresses are normalized to lowercase and must be unique among employees. `birthday` is optional and uses `YYYY-MM-DD`; `phone` is optional. Invalid fields are reported together, and invalid team or position names include the available names. The team and position must exist and cannot be deleted while employees are assigned to them. Deleting an employee also deletes their account. If an employee's email address changes, the login email of the associated account changes as well.
 
 Employee responses contain `id`, `firstName`, `lastName`, `email`, `team`, and `position`; admins also receive `birthday` and `phone`. `team` and `position` are objects with `id`, `name`, and `description`.
 

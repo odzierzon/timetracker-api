@@ -8,7 +8,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 final class Input
 {
-    public static function body(Request $request, array $allowed): array
+    public static function body(Request $request, array $allowed, ?array &$errors = null): array
     {
         try {
             $body = json_decode($request->getContent(), false, 512, JSON_THROW_ON_ERROR);
@@ -20,8 +20,14 @@ final class Input
             throw new BadRequestHttpException('Expected a JSON object.');
         }
         $data = get_object_vars($body);
-        if (array_diff(array_keys($data), $allowed)) {
-            throw new UnprocessableEntityHttpException('Unknown field.');
+        $unknownFields = array_diff(array_keys($data), $allowed);
+        if ($unknownFields) {
+            if ($errors === null) {
+                throw new UnprocessableEntityHttpException(sprintf('Unknown field(s): %s.', implode(', ', $unknownFields)));
+            }
+            foreach ($unknownFields as $field) {
+                $errors[$field] = 'is not allowed.';
+            }
         }
 
         return $data;
@@ -53,7 +59,7 @@ final class Input
     {
         $email = strtolower(self::requiredString($data, $field, 180));
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new UnprocessableEntityHttpException('Invalid email.');
+            throw new UnprocessableEntityHttpException(sprintf('%s must be a valid email address.', $field));
         }
 
         return $email;

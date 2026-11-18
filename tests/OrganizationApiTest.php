@@ -51,7 +51,23 @@ final class OrganizationApiTest extends WebTestCase
         $team = $this->createNamed('teams', 'Engineering');
         $position = $this->createNamed('positions', 'Developer');
 
-        $data = $this->employeeData('Alice', 'alice@example.test', $team['id'], $position['id']);
+        $data = $this->employeeData('Alice', 'alice@example.test', $team['name'], $position['name']);
+        $invalidData = $data;
+        $invalidData['firstName'] = '';
+        $invalidData['lastName'] = [];
+        $invalidData['email'] = 'invalid';
+        $invalidData['team'] = 'Unknown team';
+        $invalidData['position'] = 'Unknown position';
+        $invalidData['birthday'] = '2023-02-29';
+        $invalidData['phone'] = [];
+        $invalidData['unexpected'] = true;
+        $this->request('POST', '/api/employees', $invalidData, $this->adminToken);
+        self::assertResponseStatusCodeSame(422);
+        $error = $this->json()['error'];
+        foreach (['firstName', 'lastName', 'email', 'team', 'position', 'birthday', 'phone', 'unexpected', 'Engineering', 'Developer'] as $field) {
+            self::assertStringContainsString($field, $error);
+        }
+
         $data['birthday'] = '2023-02-29';
         $this->request('POST', '/api/employees', $data, $this->adminToken);
         self::assertResponseStatusCodeSame(422);
@@ -63,10 +79,25 @@ final class OrganizationApiTest extends WebTestCase
         self::assertSame('2000-02-29', $employee['birthday']);
         self::assertSame('12345', $employee['phone']);
 
+        $duplicateTeam = $this->createNamed('teams', 'Engineering');
+        $duplicatePosition = $this->createNamed('positions', 'Developer');
+        $ambiguousData = $data;
+        $ambiguousData['email'] = 'ambiguous@example.test';
+        $this->request('POST', '/api/employees', $ambiguousData, $this->adminToken);
+        self::assertResponseStatusCodeSame(422);
+        $ambiguousError = $this->json()['error'];
+        self::assertStringContainsString('team', $ambiguousError);
+        self::assertStringContainsString('position', $ambiguousError);
+        self::assertStringContainsString('ambiguous', $ambiguousError);
+        $this->request('DELETE', '/api/teams/'.$duplicateTeam['id'], null, $this->adminToken);
+        self::assertResponseStatusCodeSame(204);
+        $this->request('DELETE', '/api/positions/'.$duplicatePosition['id'], null, $this->adminToken);
+        self::assertResponseStatusCodeSame(204);
+
         $this->request('POST', '/api/employees', $data, $this->adminToken);
         self::assertResponseStatusCodeSame(409);
         $data['email'] = 'other@example.test';
-        $data['teamId'] = 999999;
+        $data['team'] = 'Unknown team';
         $this->request('POST', '/api/employees', $data, $this->adminToken);
         self::assertResponseStatusCodeSame(422);
         $this->request('DELETE', '/api/teams/'.$team['id'], null, $this->adminToken);
@@ -91,12 +122,12 @@ final class OrganizationApiTest extends WebTestCase
         $teamB = $this->createNamed('teams', 'B');
         $positionA = $this->createNamed('positions', 'A position');
         $positionB = $this->createNamed('positions', 'B position');
-        $aliceData = $this->employeeData('Alice', 'alice@example.test', $teamA['id'], $positionA['id']);
+        $aliceData = $this->employeeData('Alice', 'alice@example.test', $teamA['name'], $positionA['name']);
         $aliceData['birthday'] = '2000-01-01';
         $aliceData['phone'] = 'private';
         $alice = $this->createEmployee($aliceData);
-        $bob = $this->createEmployee($this->employeeData('Bob', 'bob@example.test', $teamA['id'], $positionA['id']));
-        $carol = $this->createEmployee($this->employeeData('Carol', 'carol@example.test', $teamB['id'], $positionB['id']));
+        $bob = $this->createEmployee($this->employeeData('Bob', 'bob@example.test', $teamA['name'], $positionA['name']));
+        $carol = $this->createEmployee($this->employeeData('Carol', 'carol@example.test', $teamB['name'], $positionB['name']));
         $this->request('POST', '/api/employees/'.$alice['id'].'/account', ['password' => 'employee-password-123'], $this->adminToken);
         self::assertResponseStatusCodeSame(201);
         $this->request('POST', '/api/employees/'.$alice['id'].'/account', ['password' => 'employee-password-123'], $this->adminToken);
@@ -122,7 +153,7 @@ final class OrganizationApiTest extends WebTestCase
         $this->request('GET', '/api/positions/'.$positionB['id'], null, $token);
         self::assertResponseStatusCodeSame(404);
 
-        $aliceData['teamId'] = $teamB['id'];
+        $aliceData['team'] = $teamB['name'];
         $aliceData['email'] = 'alice2@example.test';
         $this->request('PUT', '/api/employees/'.$alice['id'], $aliceData, $this->adminToken);
         self::assertResponseIsSuccessful();
@@ -135,7 +166,7 @@ final class OrganizationApiTest extends WebTestCase
         self::assertResponseStatusCodeSame(204);
         $this->request('GET', '/api/employees', null, $token);
         self::assertResponseStatusCodeSame(401);
-        $replacement = $this->createEmployee($this->employeeData('Replacement', 'alice2@example.test', $teamB['id'], $positionB['id']));
+        $replacement = $this->createEmployee($this->employeeData('Replacement', 'alice2@example.test', $teamB['name'], $positionB['name']));
         $this->request('POST', '/api/employees/'.$replacement['id'].'/account', ['password' => 'replacement-password-123'], $this->adminToken);
         self::assertResponseStatusCodeSame(201);
         $this->request('GET', '/api/employees', null, $token);
@@ -183,9 +214,9 @@ final class OrganizationApiTest extends WebTestCase
         return $this->json();
     }
 
-    private function employeeData(string $firstName, string $email, int $team, int $position): array
+    private function employeeData(string $firstName, string $email, string $team, string $position): array
     {
-        return ['firstName' => $firstName, 'lastName' => 'Example', 'email' => $email, 'teamId' => $team, 'positionId' => $position];
+        return ['firstName' => $firstName, 'lastName' => 'Example', 'email' => $email, 'team' => $team, 'position' => $position];
     }
 
     private function login(string $email, string $password): string

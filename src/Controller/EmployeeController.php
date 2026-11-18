@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Api\Input;
 use App\Api\Output;
 use App\Entity\Employee;
+use App\Entity\NamedEntity;
 use App\Entity\Position;
 use App\Entity\Team;
 use App\Entity\User;
@@ -119,19 +120,69 @@ final class EmployeeController extends AbstractController
 
     private function apply(Employee $employee, Request $request): void
     {
-        $data = Input::body($request, ['firstName', 'lastName', 'email', 'teamId', 'positionId', 'birthday', 'phone']);
-        $firstName = Input::requiredString($data, 'firstName', 100);
-        $lastName = Input::requiredString($data, 'lastName', 100);
-        $email = Input::email($data);
-        $team = $this->em->find(Team::class, Input::id($data, 'teamId'));
-        if (!$team) {
-            throw new UnprocessableEntityHttpException('Team doesnot exist.');
+        $errors = [];
+        $data = Input::body($request, ['firstName', 'lastName', 'email', 'team', 'position', 'birthday', 'phone'], $errors);
+        $firstName = $this->validateField($errors, 'firstName', fn () => Input::requiredString($data, 'firstName', 100));
+        $lastName = $this->validateField($errors, 'lastName', fn () => Input::requiredString($data, 'lastName', 100));
+        $email = $this->validateField($errors, 'email', fn () => Input::email($data));
+        $teamName = $this->validateField($errors, 'team', fn () => Input::requiredString($data, 'team', 150));
+        $team = null;
+        if ($teamName === null) {
+            $errors['team'] .= sprintf(' Available teams: %s.', $this->availableNames(Team::class));
+        } else {
+            $matchingTeams = $this->em->getRepository(Team::class)->findBy(['name' => $teamName]);
+            if (count($matchingTeams) === 1) {
+                $team = $matchingTeams[0];
+            } elseif ($matchingTeams) {
+                $errors['team'] = sprintf('is ambiguous because multiple teams have this name; rename one. Available teams: %s.', $this->availableNames(Team::class));
+            } else {
+                $errors['team'] = sprintf('must match an available team; available teams: %s.', $this->availableNames(Team::class));
+            }
         }
-        $position = $this->em->find(Position::class, Input::id($data, 'positionId'));
-        if (!$position) {
-            throw new UnprocessableEntityHttpException('Position does not exist.');
+        $positionName = $this->validateField($errors, 'position', fn () => Input::requiredString($data, 'position', 150));
+        $position = null;
+        if ($positionName === null) {
+            $errors['position'] .= sprintf(' Available positions: %s.', $this->availableNames(Position::class));
+        } else {
+            $matchingPositions = $this->em->getRepository(Position::class)->findBy(['name' => $positionName]);
+            if (count($matchingPositions) === 1) {
+                $position = $matchingPositions[0];
+            } elseif ($matchingPositions) {
+                $errors['position'] = sprintf('is ambiguous because multiple positions have this name; rename one. Available positions: %s.', $this->availableNames(Position::class));
+            } else {
+                $errors['position'] = sprintf('must match an available position; available positions: %s.', $this->availableNames(Position::class));
+            }
         }
-        $employee->update($firstName, $lastName, $email, $team, $position, Input::birthday($data), Input::optionalString($data, 'phone', 50));
+        $birthday = $this->validateField($errors, 'birthday', fn () => Input::birthday($data));
+        $phone = $this->validateField($errors, 'phone', fn () => Input::optionalString($data, 'phone', 50));
+
+        if ($errors) {
+            $messages = array_map(static fn (string $field, string $message) => sprintf('%s %s', $field, $message), array_keys($errors), array_values($errors));
+            throw new UnprocessableEntityHttpException('Invalid fields: '.implode('; ', $messages).'.');
+        }
+
+        $employee->update($firstName, $lastName, $email, $team, $position, $birthday, $phone);
+    }
+
+    private function validateField(array &$errors, string $field, callable $validate): mixed
+    {
+        try {
+            return $validate();
+        } catch (UnprocessableEntityHttpException $exception) {
+            $message = $exception->getMessage();
+            $prefix = $field.' ';
+            $errors[$field] = str_starts_with($message, $prefix) ? substr($message, strlen($prefix)) : $message;
+
+            return null;
+        }
+    }
+
+    private function availableNames(string $class): string
+    {
+        $entities = $this->em->getRepository($class)->findBy([], ['name' => 'ASC']);
+        $names = array_values(array_unique(array_map(static fn (NamedEntity $entity) => $entity->getName(), $entities)));
+
+        return $names ? implode(', ', $names) : 'none';
     }
 
     private function flushUnique(): void
