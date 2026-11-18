@@ -20,8 +20,13 @@ final class Input
             throw new BadRequestHttpException('Expected a JSON object.');
         }
         $data = get_object_vars($body);
-        if (array_diff(array_keys($data), $allowed)) {
-            throw new UnprocessableEntityHttpException('Unknown field.');
+        $unknownFields = array_diff(array_keys($data), $allowed);
+        if ($unknownFields) {
+            throw new UnprocessableEntityHttpException(
+                'Unknown field: ' . implode(', ', $unknownFields)
+                . '. Allowed fields are: ' . implode(', ', $allowed)
+                . '. Please pay attention to upper and lower case letters.'
+            );
         }
 
         return $data;
