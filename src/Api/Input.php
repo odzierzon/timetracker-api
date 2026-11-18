@@ -12,8 +12,9 @@ final class Input
         
     public static function body(
         Request $request, 
-        array $allowed, InputErrorCollector $errorCollector): array
-    {
+        array $allowed, 
+        InputErrorCollector $errorCollector
+    ): array {
         try {
             $body = json_decode($request->getContent(), false, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $exception) {
@@ -26,7 +27,7 @@ final class Input
         $data = get_object_vars($body);
         $unknownFields = array_diff(array_keys($data), $allowed);
         if ($unknownFields) {
-            $errorCollector->addError('unknownFields', 'Unknown field: ' . implode(', ', $unknownFields)
+            $errorCollector->addError('unknownFields', implode(', ', $unknownFields)
                 . '. Allowed fields are: ' . implode(', ', $allowed)
                 . '. Please pay attention to upper and lower case letters.');
         }

@@ -19,6 +19,8 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use App\Repository\TeamRepository;
+
 
 #[Route('/api/employees', defaults: ['_format' => 'json'])]
 final class EmployeeController extends AbstractController
@@ -122,28 +124,38 @@ final class EmployeeController extends AbstractController
         return $user->getEmployee();
     }
 
-    private function apply(Employee $employee, Request $request): void
-    {
-        $data = Input::body($request, ['firstName', 'lastName', 'email', 'teamId', 'positionId', 'birthday', 'phone'], $this->errorCollector);
+    private function apply(
+        Employee $employee, 
+        Request $request        
+    ): void {
+        $data = Input::body($request, ['firstName', 'lastName', 'email', 'team', 'position', 'birthday', 'phone'], $this->errorCollector);
         $firstName = Input::requiredString($data, 'firstName', 100, $this->errorCollector);
         $lastName = Input::requiredString($data, 'lastName', 100, $this->errorCollector);
         $email = Input::email($data, 'email', $this->errorCollector);
-        $teamId = Input::id($data, 'teamId', $this->errorCollector);
-        $positionId = Input::id($data, 'positionId', $this->errorCollector);
+        $team = Input::requiredString($data, 'team', 100, $this->errorCollector);
+        $position = Input::requiredString($data, 'position', 100, $this->errorCollector);
         $birthday = Input::birthday($data, $this->errorCollector);
         $phone = Input::optionalString($data, 'phone', 50, $this->errorCollector);
         
         $this->errorCollector->throwIfErrors();
         
-        $team = $this->em->find(Team::class, $teamId);
-        if (!$team) {
-            throw new ConflictHttpException('Team does not exist.');
+        $team = $this->em->getRepository(Team::class)->findBy(['name' => $team]);
+        if (empty($team)) {
+
+            throw new ConflictHttpException(
+                'Team does not exist. Available teams are: ' 
+                . implode(', ', $this->em->getRepository(Team::class)->getAllTeamsNameList())
+            );
         }
-        $position = $this->em->find(Position::class, $positionId);
-        if (!$position) {
-            throw new ConflictHttpException('Position does not exist.');
+
+        $position = $this->em->getRepository(Position::class)->findBy(['name' => $position]);
+        if (empty($position)) {
+            throw new ConflictHttpException(
+                'Position does not exist. Available positions are: ' 
+                . implode(', ', $this->em->getRepository(Position::class)->getAllPositionsNameList())
+            );
         }
-        $employee->update($firstName, $lastName, $email, $team, $position, $birthday, $phone);
+        $employee->update($firstName, $lastName, $email, $team[0], $position[0], $birthday, $phone);
     }
 
     private function flushUnique(): void
