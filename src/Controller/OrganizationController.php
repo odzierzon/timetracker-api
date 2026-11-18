@@ -9,6 +9,7 @@ use App\Entity\NamedEntity;
 use App\Entity\Position;
 use App\Entity\Team;
 use App\Entity\User;
+use App\Service\InputErrorCollector;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,7 +22,10 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/{kind<teams|positions>}', defaults: ['_format' => 'json'])]
 final class OrganizationController extends AbstractController
 {
-    public function __construct(private EntityManagerInterface $em) {}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private InputErrorCollector $errorCollector
+    ) {}
 
     #[Route('', methods: ['GET'])]
     public function list(string $kind): JsonResponse
@@ -128,8 +132,11 @@ final class OrganizationController extends AbstractController
 
     private function input(Request $request): array
     {
-        $data = Input::body($request, ['name', 'description']);
+        $data = Input::body($request, ['name', 'description'], $this->errorCollector);
+        $name = Input::requiredString($data, 'name', 150, $this->errorCollector);
+        $description = Input::optionalString($data, 'description', 65535, $this->errorCollector);
+        $this->errorCollector->throwIfErrors();
 
-        return [Input::requiredString($data, 'name', 150), Input::optionalString($data, 'description', 65535)];
+        return [$name, $description];
     }
 }

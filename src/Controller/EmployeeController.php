@@ -8,6 +8,7 @@ use App\Entity\Employee;
 use App\Entity\Position;
 use App\Entity\Team;
 use App\Entity\User;
+use App\Service\InputErrorCollector;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -16,14 +17,16 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 #[Route('/api/employees', defaults: ['_format' => 'json'])]
 final class EmployeeController extends AbstractController
 {
-    public function __construct(private EntityManagerInterface $em) {}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private InputErrorCollector $errorCollector
+    ) {}
 
     #[Route('', methods: ['GET'])]
     public function list(): JsonResponse
@@ -84,13 +87,15 @@ final class EmployeeController extends AbstractController
         return new JsonResponse(null, 204);
     }
 
-    #[Route('/{id<\d+>}/account', methods: ['POST'])]
+    #[Route('', methods: ['POST'])]
     public function createAccount(int $id, Request $request, UserPasswordHasherInterface $hasher): JsonResponse
     {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $employee = $this->find($id);
-        $data = Input::body($request, ['password']);
-        $password = Input::password($data);
+        $data = Input::body($request, ['password'], $this->errorCollector);
+        $password = Input::password($data, $this->errorCollector);
+        $this->errorCollector->throwIfErrors();
+        
         if ($this->em->getRepository(User::class)->findOneBy(['employee' => $employee])) {
             throw new ConflictHttpException('Employee already has an account.');
         }
@@ -119,19 +124,26 @@ final class EmployeeController extends AbstractController
 
     private function apply(Employee $employee, Request $request): void
     {
-        $data = Input::body($request, ['firstName', 'lastName', 'email', 'teamId', 'positionId', 'birthday', 'phone']);
-        $firstName = Input::requiredString($data, 'firstName', 100);
-        $lastName = Input::requiredString($data, 'lastName', 100);
-        $email = Input::email($data);
-        $team = $this->em->find(Team::class, Input::id($data, 'teamId'));
+        $data = Input::body($request, ['firstName', 'lastName', 'email', 'teamId', 'positionId', 'birthday', 'phone'], $this->errorCollector);
+        $firstName = Input::requiredString($data, 'firstName', 100, $this->errorCollector);
+        $lastName = Input::requiredString($data, 'lastName', 100, $this->errorCollector);
+        $email = Input::email($data, 'email', $this->errorCollector);
+        $teamId = Input::id($data, 'teamId', $this->errorCollector);
+        $positionId = Input::id($data, 'positionId', $this->errorCollector);
+        $birthday = Input::birthday($data, $this->errorCollector);
+        $phone = Input::optionalString($data, 'phone', 50, $this->errorCollector);
+        
+        $this->errorCollector->throwIfErrors();
+        
+        $team = $this->em->find(Team::class, $teamId);
         if (!$team) {
-            throw new UnprocessableEntityHttpException('Team doesnot exist.');
+            throw new ConflictHttpException('Team does not exist.');
         }
-        $position = $this->em->find(Position::class, Input::id($data, 'positionId'));
+        $position = $this->em->find(Position::class, $positionId);
         if (!$position) {
-            throw new UnprocessableEntityHttpException('Position does not exist.');
+            throw new ConflictHttpException('Position does not exist.');
         }
-        $employee->update($firstName, $lastName, $email, $team, $position, Input::birthday($data), Input::optionalString($data, 'phone', 50));
+        $employee->update($firstName, $lastName, $email, $team, $position, $birthday, $phone);
     }
 
     private function flushUnique(): void
